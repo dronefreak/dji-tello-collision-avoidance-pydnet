@@ -1,0 +1,15 @@
+# Core Dependencies
+numpy>=1.21.0,<2.0.0
+opencv-python>=4.5.0
+tensorflow>=2.10.0,<2.17.0
+matplotlib>=3.3.0
+
+# Optional: For Tello Drone Support
+# Uncomment the line below if you want to use the Tello drone
+# djitellopy>=2.4.0
+
+# Optional: For GPU acceleration
+# tensorflow[and-cuda]  # Uncomment for NVIDIA GPU support
+
+# Testing (optional, for development)
+# Install with: pip install -r requirements-dev.txt

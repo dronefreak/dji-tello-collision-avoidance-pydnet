@@ -1,0 +1,35 @@
+# Development Dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+pytest-mock>=3.10.0
+coverage>=6.0
+
+# Code Quality
+black>=22.0.0
+flake8>=4.0.0
+pylint>=2.15.0
+mypy>=0.950
+isort>=5.10.0
+
+# Type Stubs
+types-setuptools
+types-requests
+
+# Documentation
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+
+# Development Tools
+ipython>=8.0.0
+jupyter>=1.0.0
+notebook>=6.4.0
+
+# Pre-commit hooks (optional)
+pre-commit>=2.20.0
+
+# Build tools
+build>=0.8.0
+twine>=4.0.0
