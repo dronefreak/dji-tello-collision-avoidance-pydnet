@@ -1,0 +1,137 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dji-tello-collision-avoidance"
+version = "2.0.0"
+description = "Real-time monocular depth estimation for DJI Tello drone collision avoidance using PyDNet"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+keywords = ["drone", "tello", "depth-estimation", "computer-vision", "collision-avoidance", "autonomous-navigation"]
+authors = [
+  {name = "dronefreak"}
+]
+maintainers = [
+  {name = "dronefreak"}
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "numpy>=1.21.0",
+  "opencv-python>=4.5.0",
+  "tensorflow>=2.10.0",
+  "matplotlib>=3.3.0",
+]
+
+[project.optional-dependencies]
+tello = ["djitellopy>=2.4.0"]
+gpu = ["tensorflow[and-cuda]>=2.10.0"]
+dev = [
+  "pytest>=7.0.0",
+  "pytest-cov>=3.0.0",
+  "black>=22.0.0",
+  "flake8>=4.0.0",
+  "mypy>=0.950",
+]
+all = [
+  "djitellopy>=2.4.0",
+  "pytest>=7.0.0",
+  "pytest-cov>=3.0.0",
+  "black>=22.0.0",
+  "flake8>=4.0.0",
+  "mypy>=0.950",
+]
+
+[project.urls]
+Homepage = "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet"
+Documentation = "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet/blob/main/README.md"
+Repository = "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet"
+"Bug Tracker" = "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet/issues"
+
+[project.scripts]
+tello-depth-demo = "tello_demo:main"
+webcam-depth-demo = "webcam_demo:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+src = ["*.py"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=src --cov-report=html --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+  "cv2.*",
+  "tensorflow.*",
+  "matplotlib.*",
+  "djitellopy.*",
+]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "class .*\\bProtocol\\):",
+  "@(abc\\.)?abstractmethod",
+]
