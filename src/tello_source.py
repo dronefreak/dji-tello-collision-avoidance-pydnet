@@ -145,17 +145,39 @@ class TelloSource(CameraInterface):
 
     # Flight control methods
 
-    def takeoff(self):
-        """Take off."""
-        if self.is_opened():
-            print("Taking off...")
-            self.drone.takeoff()
+    def takeoff(self) -> bool:
+        """Take off.
 
-    def land(self):
-        """Land."""
-        if self.is_opened():
-            print("Landing...")
-            self.drone.land()
+        Returns:
+            True if takeoff command was sent, False if blocked by config or not connected.
+
+        Note:
+            Requires tello_enable_commands=True in config for safety.
+        """
+        if not self.is_opened():
+            return False
+        if not self.config.tello_enable_commands:
+            print("Warning: Takeoff blocked - tello_enable_commands is False")
+            return False
+        print("Taking off...")
+        self.drone.takeoff()
+        return True
+
+    def land(self) -> bool:
+        """Land the drone.
+
+        Returns:
+            True if land command was sent, False if not connected.
+
+        Note:
+            This command is NOT gated by tello_enable_commands for safety -
+            landing should always be possible regardless of config.
+        """
+        if not self.is_opened():
+            return False
+        print("Landing...")
+        self.drone.land()
+        return True
 
     def is_flying(self) -> bool:
         """Check if drone is flying.
@@ -168,14 +190,28 @@ class TelloSource(CameraInterface):
 
         try:
             return self.drone.is_flying
-        except:
+        except Exception:
             return False
 
-    def emergency(self):
-        """Emergency stop (cuts motors immediately)."""
-        if self.is_opened():
-            print("EMERGENCY STOP!")
-            self.drone.emergency()
+    def emergency(self) -> bool:
+        """Emergency stop (cuts motors immediately).
+
+        Returns:
+            True if emergency command was sent, False if not connected.
+
+        Warning:
+            This immediately cuts all motors. The drone WILL fall.
+            Use only in genuine emergencies.
+
+        Note:
+            This command is NOT gated by tello_enable_commands for safety -
+            emergency stop should always be possible regardless of config.
+        """
+        if not self.is_opened():
+            return False
+        print("EMERGENCY STOP!")
+        self.drone.emergency()
+        return True
 
     def move_forward(self, distance: int):
         """Move forward by distance in cm.
@@ -257,8 +293,16 @@ class TelloSource(CameraInterface):
             forward_backward: -100 to 100 (forward/backward velocity)
             up_down: -100 to 100 (up/down velocity)
             yaw: -100 to 100 (yaw velocity)
+
+        Note:
+            Values are clamped to [-100, 100] range for safety.
         """
         if self.is_opened() and self.config.tello_enable_commands:
+            # Clamp all values to valid range [-100, 100] for safety
+            left_right = max(-100, min(100, int(left_right)))
+            forward_backward = max(-100, min(100, int(forward_backward)))
+            up_down = max(-100, min(100, int(up_down)))
+            yaw = max(-100, min(100, int(yaw)))
             self.drone.send_rc_control(left_right, forward_backward, up_down, yaw)
 
     def get_battery(self) -> int:
@@ -270,7 +314,7 @@ class TelloSource(CameraInterface):
         if self.is_opened():
             try:
                 return self.drone.get_battery()
-            except:
+            except Exception:
                 return 0
         return 0
 
@@ -283,7 +327,7 @@ class TelloSource(CameraInterface):
         if self.is_opened():
             try:
                 return self.drone.get_flight_time()
-            except:
+            except Exception:
                 return 0
         return 0
 
@@ -296,7 +340,7 @@ class TelloSource(CameraInterface):
         if self.is_opened():
             try:
                 return self.drone.get_height()
-            except:
+            except Exception:
                 return 0
         return 0
 
@@ -309,7 +353,7 @@ class TelloSource(CameraInterface):
         if self.is_opened():
             try:
                 return self.drone.get_temperature()
-            except:
+            except Exception:
                 return 0
         return 0
 

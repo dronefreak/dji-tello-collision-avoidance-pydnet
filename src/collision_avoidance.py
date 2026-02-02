@@ -5,7 +5,7 @@ towards regions with greater depth.
 """
 
 import numpy as np
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, Any
 import time
 
 from .config import Config
@@ -27,6 +27,7 @@ class CollisionAvoidance:
         """
         self.config = config
         self.min_safe_depth = config.min_safe_depth
+        self.emergency_depth_threshold = config.emergency_depth_threshold
         self.center_tolerance = config.center_tolerance
         self.rotation_speed = config.rotation_speed
 
@@ -35,8 +36,9 @@ class CollisionAvoidance:
         self.last_command_time = 0
         self.command_history = []
         self.max_history = 30
+        self._imminent_collision_triggered = False
 
-    def analyze_depth(self, depth_map: np.ndarray) -> Dict[str, any]:
+    def analyze_depth(self, depth_map: np.ndarray) -> Dict[str, Any]:
         """Analyze depth map for obstacle detection and navigation.
 
         Args:
@@ -49,6 +51,7 @@ class CollisionAvoidance:
                 - mean_depth: Mean depth value
                 - center_depth: Depth at center of frame
                 - is_safe: Whether it's safe to move forward
+                - is_imminent_collision: Whether an imminent collision is detected
                 - max_depth_position: Position of maximum depth region
                 - suggested_action: Recommended navigation action
         """
@@ -69,18 +72,32 @@ class CollisionAvoidance:
         # Safety check
         is_safe = center_depth > self.min_safe_depth
 
+        # Imminent collision detection - critical safety check
+        # Check if minimum depth in center region is below emergency threshold
+        center_min_depth = float(np.min(center_region))
+        is_imminent_collision = center_min_depth < self.emergency_depth_threshold
+
+        # Track imminent collision state
+        if is_imminent_collision:
+            self._imminent_collision_triggered = True
+
         # Find region with maximum depth
         max_depth_pos = find_max_depth_region(depth_map)
 
-        # Determine suggested action
-        suggested_action = self._determine_action(depth_map, max_depth_pos)
+        # Determine suggested action (emergency_stop overrides other actions)
+        if is_imminent_collision:
+            suggested_action = "emergency_stop"
+        else:
+            suggested_action = self._determine_action(depth_map, max_depth_pos)
 
         analysis = {
             "min_depth": min_depth,
             "max_depth": max_depth,
             "mean_depth": mean_depth,
             "center_depth": center_depth,
+            "center_min_depth": center_min_depth,
             "is_safe": is_safe,
+            "is_imminent_collision": is_imminent_collision,
             "max_depth_position": max_depth_pos,
             "suggested_action": suggested_action,
         }
@@ -118,18 +135,20 @@ class CollisionAvoidance:
         else:
             return "rotate_right"
 
-    def get_rc_command(self, depth_map: np.ndarray) -> Tuple[int, int, int, int]:
+    def get_rc_command(self, depth_map: np.ndarray) -> Tuple[int, int, int, int, bool]:
         """Generate RC control command based on depth map.
 
         Args:
             depth_map: Depth map
 
         Returns:
-            RC command tuple (left_right, forward_backward, up_down, yaw)
-            Each value is in range [-100, 100]
+            Tuple of (left_right, forward_backward, up_down, yaw, is_emergency)
+            - RC values are in range [-100, 100]
+            - is_emergency is True if an emergency stop was triggered
         """
         analysis = self.analyze_depth(depth_map)
         action = analysis["suggested_action"]
+        is_emergency = analysis["is_imminent_collision"]
 
         # Initialize command (all zeros = hover)
         left_right = 0
@@ -138,7 +157,10 @@ class CollisionAvoidance:
         yaw = 0
 
         # Generate command based on action
-        if action == "forward":
+        if action == "emergency_stop":
+            # All zeros - immediate stop, caller should handle emergency landing
+            pass
+        elif action == "forward":
             forward_backward = self.config.tello_speed
         elif action == "rotate_left":
             yaw = -self.rotation_speed
@@ -153,9 +175,9 @@ class CollisionAvoidance:
         self.last_command_time = time.time()
         self._add_to_history(action)
 
-        return (left_right, forward_backward, up_down, yaw)
+        return (left_right, forward_backward, up_down, yaw, is_emergency)
 
-    def get_discrete_command(self, depth_map: np.ndarray) -> Dict[str, any]:
+    def get_discrete_command(self, depth_map: np.ndarray) -> Dict[str, Any]:
         """Generate discrete movement command based on depth map.
 
         Args:
@@ -166,6 +188,7 @@ class CollisionAvoidance:
                 - action: Action string
                 - distance: Movement distance (if applicable)
                 - angle: Rotation angle (if applicable)
+                - is_emergency: Whether emergency stop was triggered
                 - analysis: Depth analysis results
         """
         analysis = self.analyze_depth(depth_map)
@@ -175,6 +198,7 @@ class CollisionAvoidance:
             "action": action,
             "distance": 0,
             "angle": 0,
+            "is_emergency": analysis["is_imminent_collision"],
             "analysis": analysis,
         }
 
@@ -182,6 +206,9 @@ class CollisionAvoidance:
             command["distance"] = 30  # cm
         elif action in ["rotate_left", "rotate_right"]:
             command["angle"] = 30  # degrees
+        elif action == "emergency_stop":
+            command["distance"] = 0
+            command["angle"] = 0
 
         self._add_to_history(action)
 
@@ -229,6 +256,21 @@ class CollisionAvoidance:
         if self.last_command_time == 0:
             return float("inf")
         return time.time() - self.last_command_time
+
+    def was_imminent_collision_triggered(self) -> bool:
+        """Check if an imminent collision was ever triggered.
+
+        Returns:
+            True if imminent collision was detected at any point
+        """
+        return self._imminent_collision_triggered
+
+    def reset_imminent_collision_state(self):
+        """Reset the imminent collision triggered flag.
+
+        Call this after handling an emergency situation.
+        """
+        self._imminent_collision_triggered = False
 
     def compute_obstacle_map(
         self, depth_map: np.ndarray, threshold: Optional[float] = None

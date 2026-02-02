@@ -428,12 +428,172 @@ class TestTelloEdgeCases(unittest.TestCase):
             TelloSource(config)
 
 
+@patch("src.tello_source.TELLO_AVAILABLE", True)
+@patch("src.tello_source.Tello")
+class TestTelloSafetyFeatures(unittest.TestCase):
+    """Test safety features for Tello source."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = Config(tello_speed=50, tello_enable_commands=True)
+
+    def test_rc_control_clamps_values(self, mock_tello_class):
+        """Test that RC control values are clamped to valid range."""
+        from src.tello_source import TelloSource
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(self.config)
+        tello.open()
+
+        # Test values beyond range are clamped
+        tello.send_rc_control(150, -200, 300, -400)
+        mock_drone.send_rc_control.assert_called_with(100, -100, 100, -100)
+
+    def test_rc_control_accepts_valid_values(self, mock_tello_class):
+        """Test that valid RC control values pass through unchanged."""
+        from src.tello_source import TelloSource
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(self.config)
+        tello.open()
+
+        # Test valid values pass through
+        tello.send_rc_control(50, -30, 0, 75)
+        mock_drone.send_rc_control.assert_called_with(50, -30, 0, 75)
+
+    def test_rc_control_converts_floats_to_int(self, mock_tello_class):
+        """Test that RC control converts float values to int."""
+        from src.tello_source import TelloSource
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(self.config)
+        tello.open()
+
+        # Test float values are converted to int
+        tello.send_rc_control(50.7, -30.2, 0.0, 75.9)
+        mock_drone.send_rc_control.assert_called_with(50, -30, 0, 75)
+
+    def test_takeoff_blocked_when_commands_disabled(self, mock_tello_class):
+        """Test that takeoff is blocked when commands are disabled."""
+        from src.tello_source import TelloSource
+
+        config_no_commands = Config(tello_enable_commands=False)
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(config_no_commands)
+        tello.open()
+
+        result = tello.takeoff()
+
+        self.assertFalse(result)
+        mock_drone.takeoff.assert_not_called()
+
+    def test_takeoff_allowed_when_commands_enabled(self, mock_tello_class):
+        """Test that takeoff works when commands are enabled."""
+        from src.tello_source import TelloSource
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(self.config)
+        tello.open()
+
+        result = tello.takeoff()
+
+        self.assertTrue(result)
+        mock_drone.takeoff.assert_called_once()
+
+    def test_land_always_works(self, mock_tello_class):
+        """Test that land works even when commands are disabled."""
+        from src.tello_source import TelloSource
+
+        config_no_commands = Config(tello_enable_commands=False)
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_drone.is_flying = False
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(config_no_commands)
+        tello.open()
+
+        result = tello.land()
+
+        self.assertTrue(result)
+        mock_drone.land.assert_called_once()
+
+    def test_emergency_always_works(self, mock_tello_class):
+        """Test that emergency stop works even when commands are disabled."""
+        from src.tello_source import TelloSource
+
+        config_no_commands = Config(tello_enable_commands=False)
+
+        mock_drone = MagicMock()
+        mock_drone.get_battery.return_value = 85
+        mock_tello_class.return_value = mock_drone
+
+        tello = TelloSource(config_no_commands)
+        tello.open()
+
+        result = tello.emergency()
+
+        self.assertTrue(result)
+        mock_drone.emergency.assert_called_once()
+
+    def test_takeoff_returns_false_when_not_opened(self, mock_tello_class):
+        """Test that takeoff returns False when not connected."""
+        from src.tello_source import TelloSource
+
+        tello = TelloSource(self.config)
+        # Don't call open()
+
+        result = tello.takeoff()
+
+        self.assertFalse(result)
+
+    def test_land_returns_false_when_not_opened(self, mock_tello_class):
+        """Test that land returns False when not connected."""
+        from src.tello_source import TelloSource
+
+        tello = TelloSource(self.config)
+        # Don't call open()
+
+        result = tello.land()
+
+        self.assertFalse(result)
+
+    def test_emergency_returns_false_when_not_opened(self, mock_tello_class):
+        """Test that emergency returns False when not connected."""
+        from src.tello_source import TelloSource
+
+        tello = TelloSource(self.config)
+        # Don't call open()
+
+        result = tello.emergency()
+
+        self.assertFalse(result)
+
+
 def suite():
     """Create test suite."""
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestTelloSourceImport))
     suite.addTest(unittest.makeSuite(TestTelloSource))
     suite.addTest(unittest.makeSuite(TestTelloEdgeCases))
+    suite.addTest(unittest.makeSuite(TestTelloSafetyFeatures))
     return suite
 
 
