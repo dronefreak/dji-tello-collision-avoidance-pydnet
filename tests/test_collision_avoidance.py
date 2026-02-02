@@ -90,67 +90,88 @@ class TestCollisionAvoidance(unittest.TestCase):
         self.assertEqual(analysis["suggested_action"], "rotate_right")
 
     def test_stop_suggestion(self):
-        """Test suggestion to stop."""
-        # Create depth map with low depth everywhere
+        """Test suggestion to stop (emergency due to critical depth)."""
+        # Create depth map with low depth everywhere (below emergency threshold)
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
 
         analysis = self.collision_avoidance.analyze_depth(depth_map)
 
+        # With depth 0.1 (below 0.15 threshold), this triggers emergency_stop
+        self.assertEqual(analysis["suggested_action"], "emergency_stop")
+        self.assertTrue(analysis["is_imminent_collision"])
+
+    def test_normal_stop_suggestion(self):
+        """Test normal stop suggestion (above emergency but below safe threshold)."""
+        # Create depth map with depth between emergency (0.15) and safe (0.3) thresholds
+        # Depth 0.2 in center, with max depth also in center region
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
+
+        analysis = self.collision_avoidance.analyze_depth(depth_map)
+
+        # Not emergency (above 0.15), but not safe (below 0.3)
+        self.assertFalse(analysis["is_imminent_collision"])
+        self.assertFalse(analysis["is_safe"])
+        # Max depth is in center, so should suggest forward but depth is not safe
         self.assertEqual(analysis["suggested_action"], "stop")
 
     def test_get_rc_command_forward(self):
         """Test RC command for forward movement."""
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.8
 
-        left_right, forward_backward, up_down, yaw = self.collision_avoidance.get_rc_command(
-            depth_map
+        left_right, forward_backward, up_down, yaw, is_emergency = (
+            self.collision_avoidance.get_rc_command(depth_map)
         )
 
         self.assertEqual(left_right, 0)
         self.assertGreater(forward_backward, 0)
         self.assertEqual(up_down, 0)
         self.assertEqual(yaw, 0)
+        self.assertFalse(is_emergency)
 
     def test_get_rc_command_rotate_left(self):
         """Test RC command for left rotation."""
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
         depth_map[:, 0:100] = 0.8
 
-        left_right, forward_backward, up_down, yaw = self.collision_avoidance.get_rc_command(
-            depth_map
+        left_right, forward_backward, up_down, yaw, is_emergency = (
+            self.collision_avoidance.get_rc_command(depth_map)
         )
 
         self.assertEqual(left_right, 0)
         self.assertEqual(forward_backward, 0)
         self.assertEqual(up_down, 0)
         self.assertLess(yaw, 0)
+        self.assertFalse(is_emergency)
 
     def test_get_rc_command_rotate_right(self):
         """Test RC command for right rotation."""
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
         depth_map[:, 400:512] = 0.8
 
-        left_right, forward_backward, up_down, yaw = self.collision_avoidance.get_rc_command(
-            depth_map
+        left_right, forward_backward, up_down, yaw, is_emergency = (
+            self.collision_avoidance.get_rc_command(depth_map)
         )
 
         self.assertEqual(left_right, 0)
         self.assertEqual(forward_backward, 0)
         self.assertEqual(up_down, 0)
         self.assertGreater(yaw, 0)
+        self.assertFalse(is_emergency)
 
     def test_get_rc_command_stop(self):
-        """Test RC command for stop."""
+        """Test RC command for stop (emergency stop due to low depth)."""
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
 
-        left_right, forward_backward, up_down, yaw = self.collision_avoidance.get_rc_command(
-            depth_map
+        left_right, forward_backward, up_down, yaw, is_emergency = (
+            self.collision_avoidance.get_rc_command(depth_map)
         )
 
         self.assertEqual(left_right, 0)
         self.assertEqual(forward_backward, 0)
         self.assertEqual(up_down, 0)
         self.assertEqual(yaw, 0)
+        # With depth 0.1, this should trigger emergency (below 0.15 threshold)
+        self.assertTrue(is_emergency)
 
     def test_get_discrete_command(self):
         """Test discrete command generation."""
@@ -294,7 +315,7 @@ class TestCollisionAvoidanceConfig(unittest.TestCase):
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
         depth_map[:, 0:100] = 0.8
 
-        _, _, _, yaw = ca.get_rc_command(depth_map)
+        _, _, _, yaw, _ = ca.get_rc_command(depth_map)
 
         self.assertEqual(abs(yaw), 50)
 
@@ -313,6 +334,8 @@ class TestCollisionAvoidanceEdgeCases(unittest.TestCase):
 
         self.assertIsNotNone(analysis)
         self.assertFalse(analysis["is_safe"])
+        self.assertTrue(analysis["is_imminent_collision"])
+        self.assertEqual(analysis["suggested_action"], "emergency_stop")
 
     def test_all_max_depth(self):
         """Test with maximum depth everywhere."""
@@ -378,12 +401,131 @@ class TestCollisionAvoidanceEdgeCases(unittest.TestCase):
         self.assertIsNotNone(ca.get_last_command())
 
 
+class TestImminentCollisionDetection(unittest.TestCase):
+    """Test imminent collision detection features."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = Config(
+            min_safe_depth=0.3,
+            emergency_depth_threshold=0.15,
+            center_tolerance=0.2,
+            rotation_speed=30,
+        )
+        self.collision_avoidance = CollisionAvoidance(self.config)
+
+    def test_imminent_collision_detected(self):
+        """Test that imminent collision is detected when depth is critical."""
+        # Create depth map with very low depth in center (below emergency threshold)
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.5
+        h, w = depth_map.shape
+        depth_map[h // 4 : 3 * h // 4, w // 4 : 3 * w // 4] = 0.1  # Below 0.15 threshold
+
+        analysis = self.collision_avoidance.analyze_depth(depth_map)
+
+        self.assertTrue(analysis["is_imminent_collision"])
+        self.assertEqual(analysis["suggested_action"], "emergency_stop")
+
+    def test_no_imminent_collision_when_safe(self):
+        """Test no imminent collision when depth is above emergency threshold."""
+        # Create depth map with depth above emergency threshold
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.5
+
+        analysis = self.collision_avoidance.analyze_depth(depth_map)
+
+        self.assertFalse(analysis["is_imminent_collision"])
+        self.assertNotEqual(analysis["suggested_action"], "emergency_stop")
+
+    def test_imminent_collision_triggers_state(self):
+        """Test that imminent collision sets the triggered flag."""
+        # Initially not triggered
+        self.assertFalse(self.collision_avoidance.was_imminent_collision_triggered())
+
+        # Create depth map with imminent collision
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.1  # Below threshold
+
+        self.collision_avoidance.analyze_depth(depth_map)
+
+        self.assertTrue(self.collision_avoidance.was_imminent_collision_triggered())
+
+    def test_reset_imminent_collision_state(self):
+        """Test that imminent collision state can be reset."""
+        # Trigger imminent collision
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
+        self.collision_avoidance.analyze_depth(depth_map)
+
+        self.assertTrue(self.collision_avoidance.was_imminent_collision_triggered())
+
+        # Reset state
+        self.collision_avoidance.reset_imminent_collision_state()
+
+        self.assertFalse(self.collision_avoidance.was_imminent_collision_triggered())
+
+    def test_get_rc_command_returns_emergency_flag(self):
+        """Test that get_rc_command returns emergency flag."""
+        # Safe depth map
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.8
+
+        result = self.collision_avoidance.get_rc_command(depth_map)
+
+        self.assertEqual(len(result), 5)  # (lr, fb, ud, yaw, is_emergency)
+        lr, fb, ud, yaw, is_emergency = result
+        self.assertFalse(is_emergency)
+
+    def test_get_rc_command_emergency_flag_true_on_collision(self):
+        """Test that get_rc_command sets emergency flag on imminent collision."""
+        # Critical depth map
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
+
+        result = self.collision_avoidance.get_rc_command(depth_map)
+
+        lr, fb, ud, yaw, is_emergency = result
+        self.assertTrue(is_emergency)
+        # All movement should be zero during emergency
+        self.assertEqual(lr, 0)
+        self.assertEqual(fb, 0)
+        self.assertEqual(ud, 0)
+        self.assertEqual(yaw, 0)
+
+    def test_get_discrete_command_includes_emergency(self):
+        """Test that get_discrete_command includes emergency flag."""
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
+
+        command = self.collision_avoidance.get_discrete_command(depth_map)
+
+        self.assertIn("is_emergency", command)
+        self.assertTrue(command["is_emergency"])
+        self.assertEqual(command["action"], "emergency_stop")
+
+    def test_center_min_depth_in_analysis(self):
+        """Test that center_min_depth is included in analysis."""
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.5
+
+        analysis = self.collision_avoidance.analyze_depth(depth_map)
+
+        self.assertIn("center_min_depth", analysis)
+        self.assertIsInstance(analysis["center_min_depth"], float)
+
+    def test_emergency_threshold_boundary(self):
+        """Test behavior at emergency threshold boundary."""
+        # Just above threshold - should not be emergency
+        depth_map_safe = np.ones((256, 512), dtype=np.float32) * 0.16
+        analysis_safe = self.collision_avoidance.analyze_depth(depth_map_safe)
+        self.assertFalse(analysis_safe["is_imminent_collision"])
+
+        # Just below threshold - should be emergency
+        depth_map_danger = np.ones((256, 512), dtype=np.float32) * 0.14
+        analysis_danger = self.collision_avoidance.analyze_depth(depth_map_danger)
+        self.assertTrue(analysis_danger["is_imminent_collision"])
+
+
 def suite():
     """Create test suite."""
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestCollisionAvoidance))
     suite.addTest(unittest.makeSuite(TestCollisionAvoidanceConfig))
     suite.addTest(unittest.makeSuite(TestCollisionAvoidanceEdgeCases))
+    suite.addTest(unittest.makeSuite(TestImminentCollisionDetection))
     return suite
 
 

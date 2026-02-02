@@ -42,6 +42,7 @@ class Config:
     # Collision avoidance
     enable_collision_avoidance: bool = False
     min_safe_depth: float = 0.3  # Minimum safe depth threshold
+    emergency_depth_threshold: float = 0.15  # Critical depth threshold for emergency stop
     center_tolerance: float = 0.2  # Tolerance for center region (20% of frame)
     rotation_speed: int = 30  # Yaw rotation speed
 
@@ -64,6 +65,12 @@ class Config:
 
         if self.min_safe_depth <= 0:
             raise ValueError("Minimum safe depth must be positive")
+
+        if self.emergency_depth_threshold <= 0:
+            raise ValueError("Emergency depth threshold must be positive")
+
+        if self.emergency_depth_threshold >= self.min_safe_depth:
+            raise ValueError("Emergency depth threshold must be less than min_safe_depth")
 
         if not 0 <= self.center_tolerance <= 1:
             raise ValueError("Center tolerance must be between 0 and 1")
@@ -96,6 +103,7 @@ class Config:
             "tello_enable_commands": self.tello_enable_commands,
             "enable_collision_avoidance": self.enable_collision_avoidance,
             "min_safe_depth": self.min_safe_depth,
+            "emergency_depth_threshold": self.emergency_depth_threshold,
             "center_tolerance": self.center_tolerance,
             "rotation_speed": self.rotation_speed,
             "use_gpu": self.use_gpu,
