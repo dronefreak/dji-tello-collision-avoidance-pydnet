@@ -185,6 +185,9 @@ def find_max_depth_region(
 ) -> Tuple[int, int]:
     """Find the region with maximum depth using a sliding window.
 
+    Uses cv2.blur() for efficient O(n) mean computation instead of naive O(n²)
+    nested loop approach.
+
     Args:
         depth_map: Depth map (H, W)
         window_size: Size of the sliding window (height, width)
@@ -195,20 +198,33 @@ def find_max_depth_region(
     h, w = depth_map.shape
     win_h, win_w = window_size
 
-    max_depth = -np.inf
-    max_pos = (h // 2, w // 2)  # Default to center
+    # Handle edge case where window is larger than image
+    if win_h >= h or win_w >= w:
+        return (h // 2, w // 2)
 
-    # Slide window across the depth map
-    for y in range(0, h - win_h, win_h // 2):
-        for x in range(0, w - win_w, win_w // 2):
-            window = depth_map[y : y + win_h, x : x + win_w]
-            window_mean = window.mean()
+    # Use cv2.blur for efficient mean filter computation
+    # cv2.blur computes the mean over the window for every pixel
+    # This is O(n) due to separable filter optimization
+    depth_float = depth_map.astype(np.float32)
+    mean_map = cv2.blur(depth_float, (win_w, win_h))
 
-            if window_mean > max_depth:
-                max_depth = window_mean
-                max_pos = (y + win_h // 2, x + win_w // 2)
+    # Find the position of maximum mean depth
+    # Exclude borders where the window would extend outside the image
+    border_h, border_w = win_h // 2, win_w // 2
+    valid_region = mean_map[border_h : h - border_h, border_w : w - border_w]
 
-    return max_pos
+    if valid_region.size == 0:
+        return (h // 2, w // 2)
+
+    # Find max position in valid region
+    max_idx = np.argmax(valid_region)
+    local_y, local_x = np.unravel_index(max_idx, valid_region.shape)
+
+    # Convert back to full image coordinates
+    max_y = local_y + border_h
+    max_x = local_x + border_w
+
+    return (int(max_y), int(max_x))
 
 
 def draw_crosshair(
