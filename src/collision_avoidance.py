@@ -5,6 +5,7 @@ towards regions with greater depth.
 """
 
 import numpy as np
+from collections import deque
 from typing import Tuple, Optional, Dict, Any
 import time
 
@@ -34,9 +35,13 @@ class CollisionAvoidance:
         # State tracking
         self.last_command = None
         self.last_command_time = 0
-        self.command_history = []
         self.max_history = 30
+        # Use deque with maxlen for O(1) append and automatic size limiting
+        self.command_history: deque = deque(maxlen=self.max_history)
         self._imminent_collision_triggered = False
+
+        # Cache for polar coordinate calculations (keyed by depth map shape)
+        self._angle_cache: Dict[Tuple[int, int], np.ndarray] = {}
 
     def analyze_depth(self, depth_map: np.ndarray) -> Dict[str, Any]:
         """Analyze depth map for obstacle detection and navigation.
@@ -215,17 +220,18 @@ class CollisionAvoidance:
         return command
 
     def _add_to_history(self, action: str):
-        """Add action to history."""
+        """Add action to history.
+
+        Note:
+            Uses deque with maxlen for O(1) append with automatic size limiting.
+        """
         self.command_history.append(
             {
                 "action": action,
                 "timestamp": time.time(),
             }
         )
-
-        # Keep only recent history
-        if len(self.command_history) > self.max_history:
-            self.command_history.pop(0)
+        # No manual size check needed - deque automatically discards oldest items
 
     def get_command_history(self) -> list:
         """Get command history.
@@ -237,7 +243,7 @@ class CollisionAvoidance:
 
     def clear_history(self):
         """Clear command history."""
-        self.command_history = []
+        self.command_history.clear()
 
     def get_last_command(self) -> Optional[Tuple[int, int, int, int]]:
         """Get the last RC command sent.
@@ -299,16 +305,23 @@ class CollisionAvoidance:
 
         Returns:
             Dictionary mapping directions to average depth
+
+        Note:
+            Uses cached polar coordinate calculations for efficiency.
+            The cache is keyed by (height, width) tuple.
         """
         h, w = depth_map.shape
-        center_y, center_x = h // 2, w // 2
+        cache_key = (h, w)
 
-        # Create polar coordinate map
-        y_coords, x_coords = np.ogrid[:h, :w]
-        y_coords = y_coords - center_y
-        x_coords = x_coords - center_x
+        # Get or compute cached angle map
+        if cache_key not in self._angle_cache:
+            center_y, center_x = h // 2, w // 2
+            y_coords, x_coords = np.ogrid[:h, :w]
+            y_coords = y_coords - center_y
+            x_coords = x_coords - center_x
+            self._angle_cache[cache_key] = np.arctan2(y_coords, x_coords)
 
-        angles = np.arctan2(y_coords, x_coords)
+        angles = self._angle_cache[cache_key]
 
         # Divide into sectors
         sector_size = 2 * np.pi / num_sectors

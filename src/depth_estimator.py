@@ -9,6 +9,7 @@ Original paper: https://arxiv.org/abs/1806.11430
 
 import numpy as np
 import tensorflow as tf
+from collections import deque
 from typing import Optional
 import time
 
@@ -109,7 +110,9 @@ class DepthEstimator:
         self.model: Optional[PyDNetModel] = None
         self.input_shape = (config.input_height, config.input_width, 3)
         self.resolution_map = {1: "high", 2: "quarter", 3: "eighth"}
-        self.inference_times = []
+        # Use deque with maxlen for O(1) append and automatic size limiting
+        self._max_inference_samples = 30
+        self.inference_times: deque = deque(maxlen=self._max_inference_samples)
 
         # Configure GPU if available
         self._configure_gpu()
@@ -200,10 +203,8 @@ class DepthEstimator:
         outputs = self.model(image_batch, training=False)
         inference_time = time.time() - start_time
 
-        # Track inference times for FPS calculation
+        # Track inference times for FPS calculation (deque handles size limiting)
         self.inference_times.append(inference_time)
-        if len(self.inference_times) > 30:  # Keep last 30 frames
-            self.inference_times.pop(0)
 
         # Get output at specified resolution
         resolution_key = self.resolution_map[self.config.resolution]
@@ -224,7 +225,7 @@ class DepthEstimator:
 
     def reset_stats(self):
         """Reset inference time statistics."""
-        self.inference_times = []
+        self.inference_times.clear()
 
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """Make the estimator callable."""
