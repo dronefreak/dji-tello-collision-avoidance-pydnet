@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Check if OpenCV is available (required for imports through src package)
 try:
-    import cv2
+    import cv2  # noqa: F401
 
     CV2_AVAILABLE = True
 except ImportError:

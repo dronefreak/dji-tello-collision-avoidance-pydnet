@@ -18,7 +18,8 @@ setup(
     version="2.0.0",
     author="dronefreak",
     author_email="",
-    description="Real-time monocular depth estimation for DJI Tello drone collision avoidance using PyDNet",
+    description="Real-time monocular depth estimation for DJI "
+    "Tello drone collision avoidance using PyDNet",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet",
@@ -59,7 +60,8 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
-    keywords="drone tello depth-estimation computer-vision pytorch collision-avoidance autonomous-navigation",
+    keywords="drone tello depth-estimation computer-vision pytorch"
+    "collision-avoidance autonomous-navigation",
     project_urls={
         "Bug Reports": "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet/issues",
         "Source": "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet",
