@@ -13,9 +13,19 @@ import numpy as np
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Check if OpenCV is available (required for webcam_source)
+try:
+    import cv2
+
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
 from src.camera_interface import CameraInterface
 from src.config import Config
-from src.webcam_source import WebcamSource
+
+if CV2_AVAILABLE:
+    from src.webcam_source import WebcamSource
 
 
 class TestCameraInterface(unittest.TestCase):
@@ -76,6 +86,7 @@ class TestCameraInterface(unittest.TestCase):
         self.assertEqual(camera.get_frame_count(), 0)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestWebcamSource(unittest.TestCase):
     """Test WebcamSource class."""
 
@@ -272,6 +283,7 @@ class TestWebcamSource(unittest.TestCase):
         self.assertEqual(webcam.camera_id, 1)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestWebcamIntegration(unittest.TestCase):
     """Integration tests for webcam functionality."""
 
@@ -309,6 +321,7 @@ class TestWebcamIntegration(unittest.TestCase):
         self.assertEqual(webcam.get_frame_count(), 5)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestWebcamEdgeCases(unittest.TestCase):
     """Test edge cases for webcam source."""
 

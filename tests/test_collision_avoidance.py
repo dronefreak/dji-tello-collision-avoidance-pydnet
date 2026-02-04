@@ -10,10 +10,21 @@ import numpy as np
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.collision_avoidance import CollisionAvoidance
+# Check if OpenCV is available (required for collision_avoidance)
+try:
+    import cv2
+
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
+if CV2_AVAILABLE:
+    from src.collision_avoidance import CollisionAvoidance
+
 from src.config import Config
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestCollisionAvoidance(unittest.TestCase):
     """Test CollisionAvoidance class."""
 
@@ -50,8 +61,10 @@ class TestCollisionAvoidance(unittest.TestCase):
     def test_safe_forward_path(self):
         """Test detection of safe forward path."""
         # Create depth map with clear path ahead (high depth in center)
-        depth_map = np.ones((256, 512), dtype=np.float32) * 0.1
-        depth_map[:, 200:300] = 0.8  # High depth in center
+        # Center region is 50% of image, so we need high depth across the center
+        # Also need to stay above emergency_depth_threshold (0.15)
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.2  # Above emergency threshold
+        depth_map[:, 128:384] = 0.8  # High depth in center 50%
 
         analysis = self.collision_avoidance.analyze_depth(depth_map)
 
@@ -103,15 +116,17 @@ class TestCollisionAvoidance(unittest.TestCase):
     def test_normal_stop_suggestion(self):
         """Test normal stop suggestion (above emergency but below safe threshold)."""
         # Create depth map with depth between emergency (0.15) and safe (0.3) thresholds
-        # Depth 0.2 in center, with max depth also in center region
-        depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
+        # Put slightly higher depth in center to attract max_depth_pos there,
+        # but still below min_safe_depth (0.3)
+        depth_map = np.ones((256, 512), dtype=np.float32) * 0.18
+        depth_map[:, 200:312] = 0.25  # Higher in center, still below 0.3
 
         analysis = self.collision_avoidance.analyze_depth(depth_map)
 
         # Not emergency (above 0.15), but not safe (below 0.3)
         self.assertFalse(analysis["is_imminent_collision"])
         self.assertFalse(analysis["is_safe"])
-        # Max depth is in center, so should suggest forward but depth is not safe
+        # Max depth is in center but below safe threshold, so should suggest stop
         self.assertEqual(analysis["suggested_action"], "stop")
 
     def test_get_rc_command_forward(self):
@@ -273,6 +288,7 @@ class TestCollisionAvoidance(unittest.TestCase):
             self.assertEqual(len(directions), num_sectors)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestCollisionAvoidanceConfig(unittest.TestCase):
     """Test CollisionAvoidance with different configurations."""
 
@@ -295,16 +311,17 @@ class TestCollisionAvoidanceConfig(unittest.TestCase):
 
     def test_custom_tolerance(self):
         """Test with custom center tolerance."""
-        config = Config(center_tolerance=0.1)  # Narrow tolerance
+        config = Config(center_tolerance=0.1)  # Narrow tolerance (51 pixels)
         ca = CollisionAvoidance(config)
 
         depth_map = np.ones((256, 512), dtype=np.float32) * 0.2
-        # Put max depth slightly off center
-        depth_map[:, 260:280] = 0.8
+        # Put max depth clearly outside center tolerance zone
+        # tolerance_pixels = 512 * 0.1 = 51, so place depth beyond center_x + 51
+        depth_map[:, 380:440] = 0.8
 
         analysis = ca.analyze_depth(depth_map)
 
-        # With narrow tolerance, should suggest rotation
+        # With narrow tolerance and max depth outside tolerance zone, should suggest rotation
         self.assertIn(analysis["suggested_action"], ["rotate_left", "rotate_right"])
 
     def test_custom_rotation_speed(self):
@@ -320,6 +337,7 @@ class TestCollisionAvoidanceConfig(unittest.TestCase):
         self.assertEqual(abs(yaw), 50)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestCollisionAvoidanceEdgeCases(unittest.TestCase):
     """Test edge cases for collision avoidance."""
 
@@ -401,6 +419,7 @@ class TestCollisionAvoidanceEdgeCases(unittest.TestCase):
         self.assertIsNotNone(ca.get_last_command())
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestImminentCollisionDetection(unittest.TestCase):
     """Test imminent collision detection features."""
 
