@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: "DJI Tello Collision Avoidance with PyDNet"
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - family-names: Saksena
+    given-names: Saumya Kumaar
+    alias: dronefreak
+    email: kumaar324@gmail.com
+repository-code: "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet"
+url: "https://github.com/dronefreak/dji-tello-collision-avoidance-pydnet"
+license: Apache-2.0
+version: "2.0.0"
+date-released: "2025-10-23"
+keywords:
+  - drone
+  - tello
+  - depth-estimation
+  - monocular-depth
+  - collision-avoidance
+  - autonomous-navigation
+  - computer-vision
+  - pydnet
+  - tensorflow
+abstract: >-
+  Real-time monocular depth estimation for DJI Tello drone collision
+  avoidance using PyDNet. Supports both Tello drone and webcam inputs
+  with autonomous navigation based on depth maps. Built on TensorFlow
+  2.x with a modular, tested architecture.
+references:
+  - type: conference-paper
+    title: "Towards real-time unsupervised monocular depth estimation on CPU"
+    authors:
+      - family-names: Poggi
+        given-names: Matteo
+      - family-names: Aleotti
+        given-names: Filippo
+      - family-names: Tosi
+        given-names: Fabio
+      - family-names: Mattoccia
+        given-names: Stefano
+    collection-title: "IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)"
+    year: 2018
+    doi: "10.1109/IROS.2018.8593814"
