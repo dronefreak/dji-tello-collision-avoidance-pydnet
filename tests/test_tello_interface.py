@@ -40,7 +40,6 @@ class TestTelloSourceImport(unittest.TestCase):
                 pass  # Expected if djitellopy truly not available
 
 
-@patch("src.tello_source.TELLO_AVAILABLE", True)
 @patch("src.tello_source.Tello")
 class TestTelloSource(unittest.TestCase):
     """Test TelloSource class with mocked Tello."""
@@ -397,7 +396,6 @@ class TestTelloSource(unittest.TestCase):
 class TestTelloEdgeCases(unittest.TestCase):
     """Test edge cases for Tello source."""
 
-    @patch("src.tello_source.TELLO_AVAILABLE", True)
     @patch("src.tello_source.Tello")
     def test_read_without_opening(self, mock_tello_class):
         """Test reading before opening connection."""
@@ -411,7 +409,6 @@ class TestTelloEdgeCases(unittest.TestCase):
         self.assertFalse(success)
         self.assertIsNone(frame)
 
-    @patch("src.tello_source.TELLO_AVAILABLE", True)
     @patch("src.tello_source.Tello")
     def test_commands_without_opening(self, mock_tello_class):
         """Test sending commands before opening."""
@@ -426,7 +423,7 @@ class TestTelloEdgeCases(unittest.TestCase):
 
         mock_tello_class.assert_not_called()
 
-    @patch("src.tello_source.TELLO_AVAILABLE", False)
+    @patch("src.tello_source.Tello", None)
     def test_creation_without_djitellopy(self):
         """Test that creation fails gracefully without djitellopy."""
         from src.tello_source import TelloSource
@@ -437,7 +434,6 @@ class TestTelloEdgeCases(unittest.TestCase):
             TelloSource(config)
 
 
-@patch("src.tello_source.TELLO_AVAILABLE", True)
 @patch("src.tello_source.Tello")
 class TestTelloSafetyFeatures(unittest.TestCase):
     """Test safety features for Tello source."""

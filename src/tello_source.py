@@ -35,7 +35,7 @@ class TelloSource(CameraInterface):
         """
         super().__init__()
 
-        if not TELLO_AVAILABLE:
+        if Tello is None:
             raise ImportError(
                 "djitellopy is required for Tello support. Install with: pip install djitellopy"
             )
