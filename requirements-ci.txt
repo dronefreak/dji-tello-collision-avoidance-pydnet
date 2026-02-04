@@ -1,14 +1,8 @@
 # Core Dependencies
-tensorflow==2.20.0
-
-# TF 2.20 compatible stack
-numpy==1.26.4
-ml-dtypes>0.4.0
-grpcio>=1.59.0,<1.63.0
-
-# OpenCV (stable ABI3, no backtracking)
-opencv-python==4.8.1.78
-
+numpy>=1.21.0,<2.0.0
+opencv-python>=4.5.0
+tensorflow>=2.10.0
+matplotlib>=3.3.0
 
 # Optional: For Tello Drone Support
 # Uncomment the line below if you want to use the Tello drone
