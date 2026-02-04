@@ -13,7 +13,7 @@ from src.config import Config
 
 # Check if TensorFlow is available
 try:
-    import tensorflow as tf
+    import tensorflow as tf  # noqa: F401
 
     TF_AVAILABLE = True
     from src.depth_estimator import DepthEstimator, PyDNetModel

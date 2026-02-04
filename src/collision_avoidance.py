@@ -71,9 +71,7 @@ class CollisionAvoidance:
         center_y, center_x = h // 2, w // 2
         h4 = max(h // 4, 1)
         w4 = max(w // 4, 1)
-        center_region = depth_map[
-            center_y - h4 : center_y + h4, center_x - w4 : center_x + w4
-        ]
+        center_region = depth_map[center_y - h4 : center_y + h4, center_x - w4 : center_x + w4]
         if center_region.size == 0:
             center_region = depth_map
         center_depth = float(np.mean(center_region))

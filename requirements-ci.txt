@@ -1,0 +1,11 @@
+# Core Dependencies
+numpy>=1.21.0,<2.0.0
+opencv-python>=4.5.0
+tensorflow>=2.10.0
+matplotlib>=3.3.0
+
+# Optional: For Tello Drone Support
+# Uncomment the line below if you want to use the Tello drone
+# djitellopy>=2.4.0
+
+

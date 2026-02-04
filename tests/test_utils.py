@@ -11,12 +11,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Check if OpenCV is available (required for utils module)
 try:
-    import cv2
+    import cv2  # noqa: F401
 
     CV2_AVAILABLE = True
-    from src.utils import (apply_colormap, draw_center_region, draw_crosshair, draw_depth_stats,
-                           draw_fps, find_max_depth_region, preprocess_image, resize_with_aspect_ratio,
-                           visualize_depth)
+    from src.utils import (
+        apply_colormap,
+        draw_center_region,
+        draw_crosshair,
+        draw_depth_stats,
+        draw_fps,
+        find_max_depth_region,
+        preprocess_image,
+        resize_with_aspect_ratio,
+        visualize_depth,
+    )
 except ImportError:
     CV2_AVAILABLE = False
 
