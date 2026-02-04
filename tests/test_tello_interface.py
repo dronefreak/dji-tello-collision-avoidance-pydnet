@@ -13,9 +13,18 @@ import numpy as np
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Check if OpenCV is available (required for imports through src package)
+try:
+    import cv2
+
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
 from src.config import Config
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestTelloSourceImport(unittest.TestCase):
     """Test Tello source import behavior."""
 

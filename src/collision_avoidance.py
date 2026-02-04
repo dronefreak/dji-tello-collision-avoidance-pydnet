@@ -67,11 +67,15 @@ class CollisionAvoidance:
         max_depth = float(np.max(depth_map))
         mean_depth = float(np.mean(depth_map))
 
-        # Center region analysis
+        # Center region analysis (handle very small depth maps)
         center_y, center_x = h // 2, w // 2
+        h4 = max(h // 4, 1)
+        w4 = max(w // 4, 1)
         center_region = depth_map[
-            center_y - h // 4 : center_y + h // 4, center_x - w // 4 : center_x + w // 4
+            center_y - h4 : center_y + h4, center_x - w4 : center_x + w4
         ]
+        if center_region.size == 0:
+            center_region = depth_map
         center_depth = float(np.mean(center_region))
 
         # Safety check
@@ -121,20 +125,28 @@ class CollisionAvoidance:
         """
         h, w = depth_map.shape
         center_x = w // 2
+        center_y = h // 2
         tolerance_pixels = int(w * self.center_tolerance)
 
+        # Check center region mean depth first
+        h4 = max(h // 4, 1)
+        w4 = max(w // 4, 1)
+        center_region = depth_map[
+            center_y - h4 : center_y + h4,
+            center_x - w4 : center_x + w4,
+        ]
+        center_depth = float(np.mean(center_region)) if center_region.size > 0 else 0.0
+
+        # If center is safe, move forward regardless of where max depth is
+        if center_depth > self.min_safe_depth:
+            return "forward"
+
+        # Center is not safe - check where the deepest region is
         max_y, max_x = max_depth_pos
 
-        # Check if maximum depth is in center region
         if abs(max_x - center_x) < tolerance_pixels:
-            # Safe to move forward
-            center_depth = depth_map[h // 2, center_x]
-            if center_depth > self.min_safe_depth:
-                return "forward"
-            else:
-                return "stop"
-
-        # Need to rotate towards maximum depth region
+            # Max depth is in center but still below safe threshold
+            return "stop"
         elif max_x < center_x - tolerance_pixels:
             return "rotate_left"
         else:
@@ -334,9 +346,12 @@ class CollisionAvoidance:
             mask = (angles >= sector_start) & (angles < sector_end)
             sector_depth = np.mean(depth_map[mask]) if mask.any() else 0.0
 
-            # Convert to direction name
+            # Convert to direction name (use indexed keys for >8 sectors to avoid collisions)
             angle_deg = np.degrees(sector_start + sector_size / 2)
-            direction = self._angle_to_direction(angle_deg)
+            if num_sectors <= 8:
+                direction = self._angle_to_direction(angle_deg)
+            else:
+                direction = f"sector_{i}_{self._angle_to_direction(angle_deg)}"
             sectors[direction] = float(sector_depth)
 
         return sectors

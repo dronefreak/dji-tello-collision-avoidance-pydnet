@@ -16,6 +16,7 @@ try:
     TELLO_AVAILABLE = True
 except ImportError:
     TELLO_AVAILABLE = False
+    Tello = None  # type: ignore[misc, assignment] - Placeholder for testing
     print("Warning: djitellopy not installed. Tello functionality will be unavailable.")
     print("Install with: pip install djitellopy")
 

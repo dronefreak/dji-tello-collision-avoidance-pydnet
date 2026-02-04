@@ -9,11 +9,19 @@ import numpy as np
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.utils import (apply_colormap, draw_center_region, draw_crosshair, draw_depth_stats,
-                       draw_fps, find_max_depth_region, preprocess_image, resize_with_aspect_ratio,
-                       visualize_depth)
+# Check if OpenCV is available (required for utils module)
+try:
+    import cv2
+
+    CV2_AVAILABLE = True
+    from src.utils import (apply_colormap, draw_center_region, draw_crosshair, draw_depth_stats,
+                           draw_fps, find_max_depth_region, preprocess_image, resize_with_aspect_ratio,
+                           visualize_depth)
+except ImportError:
+    CV2_AVAILABLE = False
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestApplyColormap(unittest.TestCase):
     """Test apply_colormap function."""
 
@@ -67,6 +75,7 @@ class TestApplyColormap(unittest.TestCase):
         self.assertEqual(colored.shape, (2, 2, 3))
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestPreprocessImage(unittest.TestCase):
     """Test preprocess_image function."""
 
@@ -120,6 +129,7 @@ class TestPreprocessImage(unittest.TestCase):
             self.assertEqual(preprocessed.shape[:2], target_size)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestVisualizeDepth(unittest.TestCase):
     """Test visualize_depth function."""
 
@@ -172,6 +182,7 @@ class TestVisualizeDepth(unittest.TestCase):
         self.assertIsNotNone(vis)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestDrawFunctions(unittest.TestCase):
     """Test drawing utility functions."""
 
@@ -215,6 +226,7 @@ class TestDrawFunctions(unittest.TestCase):
         self.assertGreater(np.sum(result), 0)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestFindMaxDepthRegion(unittest.TestCase):
     """Test find_max_depth_region function."""
 
@@ -250,6 +262,7 @@ class TestFindMaxDepthRegion(unittest.TestCase):
         self.assertEqual(len(max_pos), 2)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestResizeWithAspectRatio(unittest.TestCase):
     """Test resize_with_aspect_ratio function."""
 
@@ -286,6 +299,7 @@ class TestResizeWithAspectRatio(unittest.TestCase):
         np.testing.assert_array_equal(resized, image)
 
 
+@unittest.skipIf(not CV2_AVAILABLE, "OpenCV not installed")
 class TestUtilsEdgeCases(unittest.TestCase):
     """Test edge cases for utility functions."""
 
