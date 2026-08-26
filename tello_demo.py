@@ -163,6 +163,20 @@ def main():
                 if not success:
                     print("Error reading frame")
                     time.sleep(0.1)
+                    # Still handle safety-critical keys so a dropped frame
+                    # doesn't block quit/land/emergency-stop.
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord("q") or key == 27:
+                        break
+                    elif key == ord("e"):
+                        print("EMERGENCY STOP!")
+                        drone.emergency()
+                        break
+                    elif key == ord("l") and drone.is_flying():
+                        drone.send_rc_control(0, 0, 0, 0)
+                        time.sleep(0.5)
+                        drone.land()
+                        print("Landing...")
                     continue
 
                 # Preprocess for depth estimation
