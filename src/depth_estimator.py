@@ -157,6 +157,14 @@ class DepthEstimator:
         dummy_input = tf.zeros((1, self.config.input_height, self.config.input_width, 3))
         _ = self.model(dummy_input, training=False)
 
+        # Compile inference into a graph once. Calling a Keras model directly
+        # in a Python loop runs it eagerly on every frame, which defeats
+        # PyDNet's CPU real-time design goal.
+        self._infer = tf.function(
+            lambda x: self.model(x, training=False),
+            input_signature=[tf.TensorSpec(shape=dummy_input.shape, dtype=tf.float32)],
+        )
+
         print(f"Model initialized with input shape: {self.input_shape}")
 
     def load_weights(self, checkpoint_path: Optional[str] = None):
@@ -198,9 +206,9 @@ class DepthEstimator:
         # Add batch dimension
         image_batch = np.expand_dims(image, axis=0).astype(np.float32)
 
-        # Inference
+        # Inference (compiled graph function, built once in _build_model)
         start_time = time.time()
-        outputs = self.model(image_batch, training=False)
+        outputs = self._infer(tf.convert_to_tensor(image_batch))
         inference_time = time.time() - start_time
 
         # Track inference times for FPS calculation (deque handles size limiting)

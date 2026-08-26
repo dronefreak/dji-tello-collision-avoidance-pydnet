@@ -6,8 +6,8 @@ visualization.
 
 import numpy as np
 import cv2
+import matplotlib
 from typing import Tuple, Optional
-from matplotlib import cm
 
 
 def apply_colormap(
@@ -44,10 +44,10 @@ def apply_colormap(
 
     # Apply colormap
     try:
-        cmap = cm.get_cmap(colormap)
-    except ValueError:
+        cmap = matplotlib.colormaps[colormap]
+    except KeyError:
         print(f"Warning: Unknown colormap '{colormap}', using 'plasma'")
-        cmap = cm.get_cmap("plasma")
+        cmap = matplotlib.colormaps["plasma"]
 
     colored = cmap(normalized)
 

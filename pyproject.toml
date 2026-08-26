@@ -35,7 +35,7 @@ dependencies = [
   "numpy>=1.21.0",
   "opencv-python>=4.5.0",
   "tensorflow>=2.10.0",
-  "matplotlib>=3.3.0",
+  "matplotlib>=3.5.0",
 ]
 
 [project.optional-dependencies]

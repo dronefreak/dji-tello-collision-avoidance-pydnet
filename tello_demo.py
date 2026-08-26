@@ -178,8 +178,14 @@ def main():
 
                 # Auto-flight control
                 if auto_mode and drone.is_flying():
-                    rc_command = collision_avoidance.get_rc_command(depth_map)
-                    drone.send_rc_control(*rc_command)
+                    left_right, forward_backward, up_down, yaw, is_emergency = (
+                        collision_avoidance.get_rc_command(depth_map)
+                    )
+                    drone.send_rc_control(left_right, forward_backward, up_down, yaw)
+                    if is_emergency:
+                        print("\nImminent collision detected! Landing...")
+                        drone.land()
+                        auto_mode = False
 
                 # Visualize
                 vis_frame = visualize_depth(
